@@ -1,8 +1,11 @@
 package com.dreamlike.ocean.EventLoop;
 
-import com.dreamlike.ocean.ByteMsg.ByteMsgAllocator;
-import com.dreamlike.ocean.ByteMsg.UnpooledByteMsgAllocator;
+import com.dreamlike.ocean.ByteMsg.Allocator.ByteMsgAllocator;
+import com.dreamlike.ocean.ByteMsg.Allocator.Impl.SharedByteMsgAllocator;
+import com.dreamlike.ocean.ByteMsg.Allocator.Impl.ThreadPoolByteMsgAllocator;
+import com.dreamlike.ocean.ByteMsg.Allocator.Impl.UnpooledByteMsgAllocator;
 import com.dreamlike.ocean.Channel.Channel;
+import com.dreamlike.ocean.Channel.NioByteChannel;
 
 import java.io.IOException;
 import java.nio.channels.*;
@@ -16,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NioEventLoop extends Thread{
+
     private static AtomicInteger atomicInteger = new AtomicInteger(0);
     private Selector selector;
     private AtomicBoolean isClose;
@@ -34,8 +38,7 @@ public class NioEventLoop extends Thread{
             scheduleTasks = new PriorityBlockingQueue<>(64,Comparator.comparingLong(ScheduleTask::getStartTime));
             setName("nioEventLoop:"+atomicInteger.getAndIncrement());
             wakeUpFlag = new AtomicBoolean(true);
-            //todo 修改eventloop绑定的分配器
-            byteMsgAllocator = UnpooledByteMsgAllocator.get();
+            byteMsgAllocator = ThreadPoolByteMsgAllocator.DEFAULT_INSTANT;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -110,7 +113,7 @@ public class NioEventLoop extends Thread{
                 ops &= ~SelectionKey.OP_CONNECT;
                 selectionKey.interestOps(ops);
                 ((SocketChannel) selectionKey.channel()).finishConnect();
-                channel.connect();
+                ((NioByteChannel)channel).connect();
             }
             if ((readyOps & SelectionKey.OP_WRITE) != 0) {
                 channel.flush();

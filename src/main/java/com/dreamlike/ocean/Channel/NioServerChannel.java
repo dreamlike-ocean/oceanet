@@ -20,11 +20,6 @@ public class NioServerChannel extends Channel{
     }
 
     @Override
-    public void connect() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void register() {
         eventLoop.registerInterest(this, SelectionKey.OP_ACCEPT);
     }
@@ -67,11 +62,12 @@ public class NioServerChannel extends Channel{
         public void read(MessageHandlerContext mhc, Object msg) throws Throwable {
             SocketChannel socketChannel = (SocketChannel) msg;
             socketChannel.configureBlocking(false);
-            NioEventLoop selectedEventloop = worker.getEventLoop();
-            NioByteChannel channel = new NioByteChannel(parentChannel, selectedEventloop, socketChannel);
+            NioEventLoop selectedEventLoop = worker.getEventLoop();
+            NioByteChannel channel = new NioByteChannel(parentChannel, selectedEventLoop, socketChannel, SelectionKey.OP_READ);
             channel.register();
             channel.pipeline.addLast(channelInitHandler);
             mhc.nextRead(channel);
         }
+
     }
 }

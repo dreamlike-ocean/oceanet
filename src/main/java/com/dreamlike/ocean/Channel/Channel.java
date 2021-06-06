@@ -1,5 +1,6 @@
 package com.dreamlike.ocean.Channel;
 
+import com.dreamlike.ocean.ByteMsg.Msg.ByteMsg;
 import com.dreamlike.ocean.EventLoop.NioEventLoop;
 import com.dreamlike.ocean.Pipeline.Pipeline;
 
@@ -28,13 +29,17 @@ public abstract class Channel {
             eventLoop.submit(this::read);
             return;
         }
+        Object msg = null;
         try {
-            Object msg = read0();
+            msg = read0();
             while (msg != null){
                 pipeline.read(msg);
                 msg = read0();
             }
         }catch (Throwable t){
+            if (msg instanceof ByteMsg) {
+                ((ByteMsg) msg).release();
+            }
             pipeline.catchException(t);
         }
     }
@@ -82,6 +87,9 @@ public abstract class Channel {
             return;
         }
         synchronized (this){
+            if (close){
+                return;
+            }
             javaChannel.close();
             close  = true;
         }
@@ -96,7 +104,6 @@ public abstract class Channel {
         return pipeline;
     }
 
-    public abstract void connect();
 
     public abstract void register();
 

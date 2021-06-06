@@ -12,7 +12,6 @@ public interface ChannelHandler {
 
     default void onRemove(MessageHandlerContext mhc){}
 
-    //未实现 回调
     default void OnActive(MessageHandlerContext mhc) throws Throwable{
         mhc.nextActive();
     }

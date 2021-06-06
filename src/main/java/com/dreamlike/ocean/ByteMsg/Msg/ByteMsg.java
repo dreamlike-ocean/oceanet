@@ -1,9 +1,11 @@
-package com.dreamlike.ocean.ByteMsg;
+package com.dreamlike.ocean.ByteMsg.Msg;
 
+import com.dreamlike.ocean.ByteMsg.Allocator.ByteMsgAllocator;
 import com.dreamlike.ocean.Channel.Channel;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 
 public interface ByteMsg {
@@ -15,7 +17,7 @@ public interface ByteMsg {
      */
     int writeToChannel(Channel channel) throws IOException;
 
-    int readFromChannel(Channel channel,ByteMsg byteMsg) throws IOException;
+    int readFromChannel(Channel channel) throws IOException;
 
     int size();
 
@@ -23,10 +25,11 @@ public interface ByteMsg {
         allocator().release(this);
     }
 
-
     int maxCapacity();
     
     byte[] readbytes(int length);
+
+    byte readByte();
 
     char readChar();
 
@@ -58,5 +61,4 @@ public interface ByteMsg {
 
     ByteMsgAllocator allocator();
 
-    ByteBuffer nioBuffer();
 }

@@ -1,6 +1,6 @@
 package com.dreamlike.ocean.Pipeline;
 
-import com.dreamlike.ocean.ByteMsg.ByteMsg;
+import com.dreamlike.ocean.ByteMsg.Msg.ByteMsg;
 import com.dreamlike.ocean.Channel.Channel;
 import com.dreamlike.ocean.Exception.UnCaughtException;
 import com.dreamlike.ocean.Handler.ChannelHandler;
@@ -75,10 +75,10 @@ public class TailNode extends HandlerNode {
 
     public void flush() throws IOException {
         Channel channel = pipeline.getChannel();
-        for (;!unflushMsg.isEmpty();){
+        while (!unflushMsg.isEmpty()) {
             //单次
             int hasWrite = 0;
-            ByteMsg wait = unflushMsg.poll();
+            ByteMsg wait = unflushMsg.peek();
             int spin = 0;
             while (spin < maxSpin) {
                 int i = wait.writeToChannel(channel);
@@ -95,10 +95,10 @@ public class TailNode extends HandlerNode {
             if (spin < maxSpin){
                 wait.release();
                 channel.eventLoop().removeInterest(channel, SelectionKey.OP_WRITE);
+                unflushMsg.removeFirst();
                 continue;
             }
             //自旋过度直接挂载写方法
-            unflushMsg.addFirst(wait);
             channel.eventLoop().addInterest(channel, SelectionKey.OP_WRITE);
             break;
         }
