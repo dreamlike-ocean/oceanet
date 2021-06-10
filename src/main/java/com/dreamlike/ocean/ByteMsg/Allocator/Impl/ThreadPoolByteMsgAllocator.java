@@ -47,6 +47,7 @@ public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
         if (poll == null){
             poll = parent.allocate(size);
         }
+        poll.hold();
         return poll;
     }
 

@@ -9,14 +9,18 @@ import com.dreamlike.ocean.Exception.ByteMsgOverflowBound;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FixedPoolByteMsg extends AbstractByteMsg {
+
     protected final ByteMsgAllocator allocator;
+    private AtomicBoolean isRelease;
 
     public FixedPoolByteMsg(ByteBuffer interByteBuff, ByteMsgAllocator allocator) {
         super(interByteBuff);
         this.internByteBuff = interByteBuff;
         this.allocator = allocator;
+        isRelease = new AtomicBoolean(false);
     }
 
 
@@ -55,8 +59,15 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public void release() {
-        internByteBuff.clear();
-        allocator.release(this);
+        //防止多线程或者多次释放
+        if (isRelease.compareAndSet(false, true)) {
+            internByteBuff.clear();
+            allocator.release(this);
+        }
+    }
+    //先分配被某一线程持有后再修改
+    public void hold(){
+        isRelease.set(false);
     }
 
     @Override

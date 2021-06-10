@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
 public class SharedByteMsgAllocator implements PoolByteMsgAllocator {
     public static final SharedByteMsgAllocator DEFAULT_INSTANT = new SharedByteMsgAllocator(4*1024, 128);
     private ByteBuffer rawSpan;

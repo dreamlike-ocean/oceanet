@@ -8,6 +8,7 @@ import com.dreamlike.ocean.Channel.Channel;
 import java.io.IOException;
 
 
+
 public class FlexPoolByteMsg extends CombinedFixedByteMsg implements ExtendableByteMsg {
 
     private ThreadPoolByteMsgAllocator allocator;
