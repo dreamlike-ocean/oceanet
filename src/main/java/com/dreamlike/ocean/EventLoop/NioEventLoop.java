@@ -13,12 +13,13 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class NioEventLoop extends Thread{
+public class NioEventLoop extends Thread implements Executor {
 
     private static AtomicInteger atomicInteger = new AtomicInteger(0);
     private Selector selector;
@@ -26,6 +27,7 @@ public class NioEventLoop extends Thread{
     private Queue<Runnable> workQueue;
     private PriorityBlockingQueue<ScheduleTask> scheduleTasks;
     private AtomicBoolean wakeUpFlag;
+
 
     private ByteMsgAllocator byteMsgAllocator;
 
@@ -180,6 +182,19 @@ public class NioEventLoop extends Thread{
 
     public ByteMsgAllocator getByteMsgAllocator() {
         return byteMsgAllocator;
+    }
+
+    @Override
+    public void execute(Runnable command) {
+        submit(command);
+    }
+
+    @Override
+    public synchronized void start() {
+        if (getState() != State.NEW) {
+            return;
+        }
+        super.start();
     }
 
     private static class ScheduleTask {
