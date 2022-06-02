@@ -13,4 +13,13 @@
         <maven.compiler.target>11</maven.compiler.target>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.6.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
 </project>
