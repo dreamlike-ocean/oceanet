@@ -8,7 +8,7 @@ public class AllocatorUtil {
      * @return <code>true</code> if <code>x<code/> is a power of 2
      */
     public static boolean isPowerOf2(int x) {
-        return (x & (x - 1)) == 0;
+        return x > 0 && Integer.bitCount(x) == 1;
     }
 
     /**
@@ -19,8 +19,10 @@ public class AllocatorUtil {
      * @return the closest power of 2
      */
     public static int roundUp(int size) {
-        if (size <= 0) // Check for edge case
-            throw new IllegalArgumentException("size must be positive");
+        if (size < 0) // Check for edge case
+            throw new IllegalArgumentException("size must be non-negative");
+        if (size > (1 << 30)) // Check for edge case
+            throw new IllegalArgumentException("size must be no more than 2^31");
         if (isPowerOf2(size)) // return if it is already a power of 2
             return size;
         size |= size >> 1;

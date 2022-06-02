@@ -6,26 +6,21 @@ import com.dreamlike.ocean.ByteMsg.Msg.impl.FixedPoolByteMsg;
 import com.dreamlike.ocean.Util.AllocatorUtil;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
-import java.util.Queue;
 
 //线程私有
 public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
-    public static final ThreadPoolByteMsgAllocator DEFAULT_INSTANT =
-            new ThreadPoolByteMsgAllocator(
-                    SharedByteMsgAllocator.DEFAULT_INSTANT, 4 * 1024, 128);
+    public static final ThreadPoolByteMsgAllocator DEFAULT_INSTANT = new ThreadPoolByteMsgAllocator(
+            SharedByteMsgAllocator.DEFAULT_INSTANT, 4 * 1024, 128);
     private ByteBuffer rawSpan;
-    private SharedByteMsgAllocator parent;
-    private int poolSize;
+    private final SharedByteMsgAllocator parent;
+    private final int poolSize;
     private boolean isInit;
-    private int chunkSize;
-    private ByteBuffer rawBuffer;
-    private int[] longest;
-    private int chunkNum;
+    private final int chunkSize;
+    private final ByteBuffer rawBuffer;
+    private final int[] longest;
+    private final int chunkNum;
 
-    public ThreadPoolByteMsgAllocator(
-            SharedByteMsgAllocator sharedByteMsgAllocator, int poolSize,
-            int chunkSize) {
+    public ThreadPoolByteMsgAllocator(SharedByteMsgAllocator sharedByteMsgAllocator, int poolSize, int chunkSize) {
         parent = sharedByteMsgAllocator;
         int i = poolSize / (4 * 1024);
         //4K 对齐
@@ -43,8 +38,7 @@ public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
 
     @Override
     public void release(ByteMsg byteMsg) {
-        if (!(byteMsg instanceof FixedPoolByteMsg) ||
-            byteMsg.allocator() != this) {
+        if (!(byteMsg instanceof FixedPoolByteMsg) || byteMsg.allocator() != this) {
             return;
         }
         var offset = ((FixedPoolByteMsg) byteMsg).getOffset();
@@ -78,10 +72,11 @@ public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
         if (!isInit) {
             init();
         }
-        size /= chunkSize;
-        size = AllocatorUtil.roundUp(size); // chunks need to allocate
-        if (longest[0] < size) {
-            var poll = parent.allocate(size);
+        var chunks = size / chunkSize;
+        // chunks need to be allocated
+        chunks = size % chunkSize == 0 ? AllocatorUtil.roundUp(chunks) : AllocatorUtil.roundUp(chunks + 1);
+        if (longest[0] < chunks) {
+            var poll = parent.allocate(chunks);
             poll.hold();
             return poll;
         } else {
@@ -89,17 +84,17 @@ public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
             int offset;
             int index = 0;
 
-            for (nodeSize = chunkNum; nodeSize != size; nodeSize /= 2) {
+            for (nodeSize = chunkNum; nodeSize != chunks; nodeSize /= 2) {
                 var left = longest[AllocatorUtil.leftLeaf(index)];
                 var right = longest[AllocatorUtil.rightLeaf(index)];
                 // 优先选择最小的且满足条件的分叉，小块优先，尽量保留大块
                 if (left <= right) {
-                    if (left >= size)
+                    if (left >= chunks)
                         index = AllocatorUtil.leftLeaf(index);
                     else
                         index = AllocatorUtil.rightLeaf(index);
                 } else {
-                    if (right >= size)
+                    if (right >= chunks)
                         index = AllocatorUtil.rightLeaf(index);
                     else
                         index = AllocatorUtil.leftLeaf(index);
@@ -111,13 +106,13 @@ public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
 
             while (index != 0) {
                 index = AllocatorUtil.parent(index);
-                longest[index] = Math.max(
-                        longest[AllocatorUtil.leftLeaf(index)],
-                        longest[AllocatorUtil.rightLeaf(index)]);
+                longest[index] = Math.max(longest[AllocatorUtil.leftLeaf(index)],
+                                          longest[AllocatorUtil.rightLeaf(index)]);
             }
 
-            var byteMsg = rawBuffer.position(offset * chunkSize)
-                                   .limit((offset + size) * chunkSize)
+            var byteMsg = rawBuffer.limit(poolSize)
+                                   .position(offset * chunkSize)
+                                   .limit((offset + chunks) * chunkSize)
                                    .slice();
             var poll = new FixedPoolByteMsg(byteMsg, this, offset);
             poll.hold();
@@ -133,6 +128,7 @@ public class ThreadPoolByteMsgAllocator implements PoolByteMsgAllocator {
             }
             longest[i] = nodeSize;
         }
+        isInit = true;
     }
 
     @Override
