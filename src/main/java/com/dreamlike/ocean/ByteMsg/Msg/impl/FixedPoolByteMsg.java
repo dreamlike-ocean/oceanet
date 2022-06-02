@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FixedPoolByteMsg extends AbstractByteMsg {
 
     protected final ByteMsgAllocator allocator;
+    private final int offset;
     private AtomicBoolean isRelease;
 
     public FixedPoolByteMsg(ByteBuffer interByteBuff, ByteMsgAllocator allocator) {
@@ -21,6 +22,15 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
         this.internByteBuff = interByteBuff;
         this.allocator = allocator;
         isRelease = new AtomicBoolean(false);
+        this.offset = -1;
+    }
+
+    public FixedPoolByteMsg(ByteBuffer interByteBuff, ByteMsgAllocator allocator, int offset) {
+        super(interByteBuff);
+        this.internByteBuff = interByteBuff;
+        this.allocator = allocator;
+        isRelease = new AtomicBoolean(false);
+        this.offset = offset;
     }
 
 
@@ -28,7 +38,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
     public int writeToChannel(Channel channel) throws IOException {
         internByteBuff.flip();
         int write = ((SocketChannel) channel.javaChanel()).write(internByteBuff);
-        if (write < size()){
+        if (write < size()) {
             //此时没写完
             internByteBuff.compact();
         }
@@ -47,12 +57,12 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
         return writeIndex;
     }
 
-    public int lastSize(){
+    public int lastSize() {
         // 0 1 2 3   max = 4 writeIndex = 1 -> 3
         return maxCapacity - writeIndex;
     }
 
-    public int readSize(){
+    public int readSize() {
         // 0 1 2 3 4
         return writeIndex - readIndex;
     }
@@ -65,8 +75,9 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
             allocator.release(this);
         }
     }
+
     //先分配被某一线程持有后再修改
-    public void hold(){
+    public void hold() {
         isRelease.set(false);
     }
 
@@ -81,32 +92,31 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
     }
 
     //从offset处开始 0 1 2 3    1+3=4
-    public int writeBytes(byte[] src,int offset,int expectLength){
-        if (offset + expectLength > src.length){
+    public int writeBytes(byte[] src, int offset, int expectLength) {
+        if (offset + expectLength > src.length) {
             throw new ArrayIndexOutOfBoundsException();
         }
         int lastSize = lastSize();
         int writeSize = Math.min(lastSize, expectLength);
-        writeIndex+=writeSize;
-        internByteBuff.put(src,offset,writeSize);
+        writeIndex += writeSize;
+        internByteBuff.put(src, offset, writeSize);
         return writeSize;
     }
 
     //
-    public int readBytes(byte[] src,int offset,int expectLength){
-        if (offset + expectLength > src.length){
+    public int readBytes(byte[] src, int offset, int expectLength) {
+        if (offset + expectLength > src.length) {
             throw new ArrayIndexOutOfBoundsException();
         }
         int readSize = readSize();
         int byteReadSize = Math.min(readSize, expectLength);
         int old = internByteBuff.position();
         int limit = internByteBuff.limit();
-        internByteBuff
-                .flip()
-                .position(readIndex)
-                .get(src,offset,byteReadSize)
-                .limit(limit)
-                .position(old);
+        internByteBuff.flip()
+                      .position(readIndex)
+                      .get(src, offset, byteReadSize)
+                      .limit(limit)
+                      .position(old);
         readIndex += byteReadSize;
         return byteReadSize;
     }
@@ -114,7 +124,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writByte(byte b) {
-        if (writeCheckBound(1)){
+        if (writeCheckBound(1)) {
             internByteBuff.put(b);
             writeIndex++;
             return this;
@@ -126,9 +136,9 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeChar(char c) {
-        if (writeCheckBound(2)){
+        if (writeCheckBound(2)) {
             internByteBuff.putChar(c);
-            writeIndex +=2;
+            writeIndex += 2;
             return this;
         }
         throw new ByteMsgOverflowBound();
@@ -136,7 +146,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeShort(short s) {
-        if (writeCheckBound(2)){
+        if (writeCheckBound(2)) {
             internByteBuff.putShort(s);
             writeIndex += 2;
             return this;
@@ -146,7 +156,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeInt(int i) {
-        if (writeCheckBound(4)){
+        if (writeCheckBound(4)) {
             internByteBuff.putInt(i);
             writeIndex += 4;
             return this;
@@ -156,7 +166,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeLong(long l) {
-        if (writeCheckBound(8)){
+        if (writeCheckBound(8)) {
             internByteBuff.putLong(l);
             writeIndex += 8;
             return this;
@@ -166,7 +176,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeDouble(double d) {
-        if(writeCheckBound(8)){
+        if (writeCheckBound(8)) {
             internByteBuff.putDouble(d);
             writeIndex += 8;
             return this;
@@ -176,7 +186,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeFloat(float f) {
-        if(writeCheckBound(4)){
+        if (writeCheckBound(4)) {
             internByteBuff.putFloat(f);
             writeIndex += 4;
             return this;
@@ -186,7 +196,7 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
 
     @Override
     public ByteMsg writeBytes(byte[] bytes) {
-        if(writeCheckBound(bytes.length)){
+        if (writeCheckBound(bytes.length)) {
             internByteBuff.put(bytes);
             writeIndex += bytes.length;
             return this;
@@ -194,8 +204,11 @@ public class FixedPoolByteMsg extends AbstractByteMsg {
         throw new ByteMsgOverflowBound();
     }
 
-    private boolean writeCheckBound(int length){
-        return writeIndex + length <=  maxCapacity;
+    private boolean writeCheckBound(int length) {
+        return writeIndex + length <= maxCapacity;
     }
 
+    public int getOffset() {
+        return offset;
+    }
 }
